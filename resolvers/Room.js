@@ -1,17 +1,17 @@
 const Room = {
-    reserved: async ({ _id }, _, { client }) => {
+    reservations: async ({ _id }, {}, { _client }) => {
+        const client = _client();
         try {
             await client.connect();
             let yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
-            filter = { _id, date: { $gt: yesterday } };
-            const result = await client
+            filter = { roomId: _id, date: { $gt: yesterday } };
+            const cursor = client
                 .db("myHotel")
                 .collection("reservations")
-                .countDocuments(filter);
-            return Boolean(result);
+                .find(filter);
+            return await cursor.toArray();
         } catch (e) {
-            console.log(e);
             if (e.type === "myError") throw e.error;
             throw "something went wrong";
         } finally {

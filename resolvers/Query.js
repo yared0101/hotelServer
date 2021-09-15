@@ -1,19 +1,7 @@
 const pgp = require("pg-promise")();
 const { verify } = require("jsonwebtoken");
 const error = require("../error");
-const returnAllowedColumns = (allArrays, disallowedColumns) => {
-    for (let i in allArrays) {
-        let newData = {};
-        for (let k in allArrays[i]) {
-            if (k in disallowedColumns) continue;
-            newData[k] = allArrays[i][k];
-        }
-        allArrays[i] = { ...newData };
-    }
-    return allArrays;
-};
 const { MongoClient, ObjectId } = require("mongodb");
-const { processFileUploads } = require("apollo-server-core");
 try {
     const uri = "mongodb://localhost:27017";
     var client = new MongoClient(uri);
@@ -27,7 +15,7 @@ const Query = {
     getUsers: async (
         _,
         { accessToken, limit, skip, likeSearch, minSearch, maxSearch, sort },
-        { userColNames, _client, checkSize, returnDisallowedUserColumns }
+        { userColNames, _client, checkSize, returnDisallowedUserColumns, right }
     ) => {
         //TODO u can let them send an array to give multiple choises(or) name :$in:['adsf'],if sent morename :$in:['adsf','asddd']
         likeSearch = likeSearch || {};
@@ -53,11 +41,8 @@ const Query = {
         } catch (e) {
             throw error("Invalid or Expired Access Token", "tempAccessToken");
         }
-        const disallowedColumns = returnDisallowedUserColumns(payLoad);
-        userColNames = { ...userColNames };
-        for (let i in disallowedColumns) {
-            userColNames[i] = 0;
-        }
+        const { accessTokenPower } = right;
+        await accessTokenPower(payLoad, "users");
         let filter = { ...likeSearch };
         for (let i in minSearch) {
             if (i === "role") {
@@ -81,7 +66,7 @@ const Query = {
             await client.connect();
             const cursor = client
                 .db("myHotel")
-                .collection("user")
+                .collection("users")
                 .find(filter, {
                     projection: { ...userColNames },
                     sort,
@@ -137,7 +122,7 @@ const Query = {
             await client.connect();
             const cursor = client
                 .db("myHotel")
-                .collection("roomType")
+                .collection("roomTypes")
                 .find(filter, {
                     projection: { ...roomTypeColNames },
                     sort,
@@ -197,9 +182,10 @@ const Query = {
                     }
                 );
             const reservedData = await reservedCursor.toArray();
-            const dataArray = reservedData.map(
-                (element) => new ObjectId(element.roomId)
-            );
+            const newDataArray = reservedData.map((element) => {
+                let temp = new ObjectId(element.roomId);
+                return String(temp);
+            }); //i have messed with this, do regression testing!
             const cursor = client
                 .db("myHotel")
                 .collection("rooms")
@@ -212,7 +198,6 @@ const Query = {
             const data = await cursor.toArray();
             const wholeRoomData = data.map((element) => {
                 const { _id } = element;
-                newDataArray = dataArray.map((element) => String(element));
                 return {
                     ...element,
                     reserved:
@@ -346,7 +331,7 @@ const Query = {
     getFoodAndDrinks: async (
         _,
         { limit, skip, likeSearch, minSearch, maxSearch, sort },
-        { foodAndDrinksColNames, _client }
+        { foodAndDrinkColNames, _client }
     ) => {
         likeSearch = likeSearch || {};
         minSearch = minSearch || {};
@@ -379,7 +364,7 @@ const Query = {
                 .db("myHotel")
                 .collection("foodAndDrinks")
                 .find(filter, {
-                    projection: { ...foodAndDrinksColNames },
+                    projection: { ...foodAndDrinkColNames },
                     sort: newSort,
                     limit,
                     skip,
@@ -404,7 +389,7 @@ const Query = {
             throw error("Invalid or Expired Access Token", "accessToken");
         }
         const { accessTokenPower } = right;
-        accessTokenPower(payLoad, "orderedFoodAndDrinks", 2);
+        await accessTokenPower(payLoad, "orderedFoodAndDrinks", 1);
         likeSearch = likeSearch || {};
         minSearch = minSearch || {};
         maxSearch = maxSearch || {};
@@ -444,6 +429,152 @@ const Query = {
             return await cursor.toArray();
         } catch (e) {
             console.log(e);
+            if (e.type === "myError") throw e.error;
+            throw "something went wrong";
+        } finally {
+            await client.close();
+        }
+    },
+    getRoomServices: async (
+        _,
+        { limit, skip, likeSearch, minSearch, maxSearch, sort },
+        { roomServiceColNames, _client }
+    ) => {
+        likeSearch = likeSearch || {};
+        minSearch = minSearch || {};
+        maxSearch = maxSearch || {};
+        sort = sort || {};
+        skip = skip || 0;
+        limit = limit > 20 ? 20 : limit;
+        for (let i in likeSearch) {
+            likeSearch[i] = {
+                $regex: "_*" + likeSearch[i] + "_*",
+                $options: "i",
+            };
+        }
+        let newSort = {};
+        for (let i in sort) {
+            if (sort[i]) newSort[i] = 1;
+            else newSort[i] = -1;
+        }
+        let filter = { ...likeSearch };
+        for (let i in minSearch) {
+            filter[i] = { $gt: minSearch[i] };
+        }
+        for (let i in maxSearch) {
+            filter[i] = { ...filter[i], $lt: maxSearch[i] };
+        }
+        const client = _client();
+        try {
+            await client.connect();
+            const cursor = client
+                .db("myHotel")
+                .collection("roomServices")
+                .find(filter, {
+                    projection: { ...roomServiceColNames },
+                    sort: newSort,
+                    limit,
+                    skip,
+                });
+            return await cursor.toArray();
+        } catch (e) {
+            if (e.type === "myError") throw e.error;
+            throw "something went wrong";
+        } finally {
+            await client.close();
+        }
+    },
+    getOrderedRoomServices: async (
+        _,
+        { accessToken, limit, skip, likeSearch, minSearch, maxSearch, sort },
+        { orderedRoomServiceColNames, _client, right }
+    ) => {
+        let payLoad;
+        try {
+            payLoad = verify(accessToken, process.env.ACCESS_KEY);
+        } catch (e) {
+            throw error("Invalid or Expired Access Token", "accessToken");
+        }
+        const { accessTokenPower } = right;
+        await accessTokenPower(payLoad, "orderedRoomServices", 1);
+        likeSearch = likeSearch || {};
+        minSearch = minSearch || {};
+        maxSearch = maxSearch || {};
+        sort = sort || {};
+        skip = skip || 0;
+        limit = limit > 20 ? 20 : limit;
+        for (let i in likeSearch) {
+            likeSearch[i] = {
+                $regex: "_*" + likeSearch[i] + "_*",
+                $options: "i",
+            };
+        }
+        let newSort = {};
+        for (let i in sort) {
+            if (sort[i]) newSort[i] = 1;
+            else newSort[i] = -1;
+        }
+        let filter = { ...likeSearch };
+        for (let i in minSearch) {
+            filter[i] = { $gt: minSearch[i] };
+        }
+        for (let i in maxSearch) {
+            filter[i] = { ...filter[i], $lt: maxSearch[i] };
+        }
+        const client = _client();
+        try {
+            await client.connect();
+            const cursor = client
+                .db("myHotel")
+                .collection("orderedRoomServices")
+                .find(filter, {
+                    projection: { ...orderedRoomServiceColNames },
+                    sort: newSort,
+                    limit,
+                    skip,
+                });
+            return await cursor.toArray();
+        } catch (e) {
+            if (e.type === "myError") throw e.error;
+            throw "something went wrong";
+        } finally {
+            await client.close();
+        }
+    },
+    getServices: async (
+        _,
+        { limit, skip, likeSearch, sort },
+        { serviceColNames, _client }
+    ) => {
+        likeSearch = likeSearch || {};
+        sort = sort || {};
+        skip = skip || 0;
+        limit = limit > 20 ? 20 : limit;
+        for (let i in likeSearch) {
+            likeSearch[i] = {
+                $regex: "_*" + likeSearch[i] + "_*",
+                $options: "i",
+            };
+        }
+        for (let i in sort) {
+            if (sort[i]) sort[i] = 1;
+            else sort[i] = -1;
+        }
+        let filter = { ...likeSearch };
+        const client = _client();
+        try {
+            await client.connect();
+            const cursor = client
+                .db("myHotel")
+                .collection("services")
+                .find(filter, {
+                    projection: { ...serviceColNames },
+                    sort,
+                    limit,
+                    skip,
+                });
+            return await cursor.toArray();
+        } catch (e) {
             if (e.type === "myError") throw e.error;
             throw "something went wrong";
         } finally {

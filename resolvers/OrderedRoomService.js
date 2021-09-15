@@ -1,4 +1,4 @@
-const OrderedFoodAndDrink = {
+const OrderedRoomService = {
     orderer: async ({ orderer }, {}, { _client }) => {
         const client = _client();
         try {
@@ -16,14 +16,14 @@ const OrderedFoodAndDrink = {
             await client.close();
         }
     },
-    food: async ({ foodId }, {}, { _client }) => {
+    roomService: async ({ roomServiceId }, {}, { _client }) => {
         const client = _client();
         try {
             await client.connect();
             const result = await client
                 .db("myHotel")
-                .collection("foodAndDrinks")
-                .findOne({ _id: foodId });
+                .collection("roomServices")
+                .findOne({ _id: roomServiceId });
             return result;
         } catch (e) {
             if (e.type === "myError") throw e.error;
@@ -33,4 +33,4 @@ const OrderedFoodAndDrink = {
         }
     },
 };
-module.exports = OrderedFoodAndDrink;
+module.exports = OrderedRoomService;

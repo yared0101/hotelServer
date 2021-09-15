@@ -8,6 +8,7 @@ const typeDefs = gql`
         orderedFoodAndDrinks: Int
         roomServices: Int
         orderedRoomServices: Int
+        roomType: Int
     }
     type UserRole {
         users: Int
@@ -17,6 +18,7 @@ const typeDefs = gql`
         orderedFoodAndDrinks: Int
         roomServices: Int
         orderedRoomServices: Int
+        roomType: Int
     }
     type User {
         _id: ID!
@@ -60,6 +62,8 @@ const typeDefs = gql`
     type RoomType {
         _id: ID!
         name: String!
+        image: String!
+        rooms: [Room]!
         description: String!
         price: [Float!]!
         holidayPriceAndDay: [[String!]]
@@ -83,9 +87,11 @@ const typeDefs = gql`
         description: String!
         price: [Float!]!
         amenities: AmenitiesInput!
+        image: String!
     }
     input RoomTypeUpdate {
         name: String
+        image: String
         description: String
         price: [Float!] #the whole array will be changed, weekend and weekday price must be sent equally
         amenities: AmenitiesInput
@@ -96,35 +102,36 @@ const typeDefs = gql`
         floor: Int!
         roomId: String!
         inside: Boolean!
-        availablity: Boolean!
+        availability: Boolean!
         reserved: Boolean!
+        reservations: [Reservation]!
         type: String!
     }
     input RoomInput {
         floor: Int!
         roomId: String!
         inside: Boolean!
-        availablity: Boolean!
+        availability: Boolean!
         type: String!
     }
     input RoomUpdate {
         floor: Int
         roomId: String
         inside: Boolean
-        availablity: Boolean
+        availability: Boolean
         type: String
     }
     input RoomSort {
         floor: Boolean
         roomId: Boolean
         inside: Boolean
-        availablity: Boolean
+        availability: Boolean
         reserved: Boolean
-        roomType: Boolean
+        type: Boolean
     }
     input RoomLikeSearch {
         roomType: String
-        roomId: Int
+        roomId: String
     }
     input RoomRangeSearch {
         floor: Int
@@ -132,7 +139,7 @@ const typeDefs = gql`
     }
     type Reservation {
         date: String!
-        userId: String!
+        user: User!
         roomId: String!
         guests: [Int!]!
     }
@@ -169,7 +176,7 @@ const typeDefs = gql`
         userId: String
     }
     type FoodAndDrink {
-        _id: String!
+        _id: ID!
         name: String!
         title: String!
         description: String!
@@ -221,6 +228,7 @@ const typeDefs = gql`
         time: Int
     }
     type OrderedFoodAndDrink {
+        _id: ID!
         amount: Int!
         orderer: User!
         status: String!
@@ -235,11 +243,91 @@ const typeDefs = gql`
         status: String
     }
     input OrderedFoodAndDrinkSort {
-        amount: Boolean!
-        orderer: Boolean!
-        status: Boolean!
-        orderedTime: Boolean!
-        food: Boolean!
+        amount: Boolean
+        orderer: Boolean
+        status: Boolean
+        orderedTime: Boolean
+        foodId: Boolean
+    }
+    type RoomService {
+        _id: ID!
+        name: String!
+        active: Boolean!
+        description: String!
+        price: Float!
+    }
+    input RoomServiceInput {
+        name: String!
+        active: Boolean!
+        description: String!
+        price: Float!
+    }
+    input RoomServiceUpdate {
+        name: String
+        active: Boolean
+        description: String
+        price: Float
+    }
+    input RoomServiceLikeSearch {
+        name: String
+    }
+    input RoomServiceRangeSearch {
+        price: Float
+    }
+    input RoomServiceSort {
+        name: Boolean
+        active: Boolean
+        price: Boolean
+    }
+    type OrderedRoomService {
+        _id: ID!
+        amount: Int!
+        orderer: User!
+        status: String!
+        orderedTime: String!
+        roomService: RoomService!
+    }
+    input OrderedRoomServiceRangeSearch {
+        amount: Int
+        orderedTime: String
+    }
+    input OrderedRoomServiceLikeSearch {
+        status: String
+    }
+    input OrderedRoomServiceSort {
+        amount: Boolean
+        orderer: Boolean
+        status: Boolean
+        orderedTime: Boolean
+        roomServiceId: Boolean
+    }
+    type Service {
+        name: String!
+        image: String!
+        miniDescription: String!
+        description: String!
+    }
+    input ServiceInput {
+        name: String!
+        image: String!
+        miniDescription: String!
+        description: String!
+    }
+    input ServiceUpdate {
+        name: String
+        image: String
+        miniDescription: String
+        description: String
+    }
+    input ServiceLikeSearch {
+        name: String
+        miniDescription: String
+        description: String
+    }
+    input ServiceSort {
+        name: Boolean
+        miniDescription: Boolean
+        description: Boolean
     }
     type Query {
         hello: String!
@@ -299,7 +387,30 @@ const typeDefs = gql`
             maxSearch: OrderedFoodAndDrinkRangeSearch
             likeSearch: OrderedFoodAndDrinkLikeSearch
             sort: OrderedFoodAndDrinkSort
-        ): [OrderedFoodAndDrink]
+        ): [OrderedFoodAndDrink]!
+        getRoomServices(
+            limit: Int!
+            skip: Int
+            minSearch: RoomServiceRangeSearch
+            maxSearch: RoomServiceRangeSearch
+            sort: RoomServiceSort
+            likeSearch: RoomServiceLikeSearch
+        ): [RoomService]!
+        getOrderedRoomServices(
+            accessToken: String!
+            limit: Int!
+            skip: Int
+            minSearch: OrderedRoomServiceRangeSearch
+            maxSearch: OrderedRoomServiceRangeSearch
+            likeSearch: OrderedRoomServiceLikeSearch
+            sort: OrderedRoomServiceSort
+        ): [OrderedRoomService]!
+        getServices(
+            limit: Int!
+            skip: Int
+            likeSearch: ServiceLikeSearch
+            sort: ServiceSort
+        ): [Service]!
     }
     type Mutation {
         domutate(slug: String!): String!
@@ -332,9 +443,10 @@ const typeDefs = gql`
         addRoom(accessToken: String!, newData: RoomInput!): String!
         updateRoom(
             accessToken: String!
-            _id: String
+            _id: String!
             updateData: RoomUpdate!
         ): Boolean!
+        deleteRoom(accessToken: String!, _id: String!): Boolean!
         reserveRoom(
             accessToken: String!
             _id: String!
@@ -393,6 +505,36 @@ const typeDefs = gql`
             amount: Int
             status: String
         ): Boolean!
+        addRoomService(
+            accessToken: String!
+            newData: RoomServiceInput!
+        ): String!
+        updateRoomService(
+            accessToken: String!
+            updateData: RoomServiceUpdate!
+            _id: String!
+        ): Boolean!
+        deleteRoomService(accessToken: String!, _id: String!): Boolean!
+        orderRoomService(
+            accessToken: String!
+            roomServiceId: String!
+            amount: Int!
+            orderer: String
+        ): String!
+        updateOrderedRoomService(
+            accessToken: String!
+            orderId: String!
+            roomServiceId: String
+            amount: Int
+            status: String
+        ): Boolean!
+        addService(accessToken: String!, newData: ServiceInput!): String!
+        updateService(
+            accessToken: String!
+            updateData: ServiceUpdate!
+            _id: String!
+        ): Boolean!
+        deleteService(accessToken: String!, _id: String!): Boolean!
     }
     type Subscription {
         animalAdded: String
