@@ -177,7 +177,6 @@ const typeDefs = gql`
     }
     input ReservationLikeSearch {
         roomId: String
-        userId: String
     }
     type FoodAndDrink {
         _id: ID!
@@ -373,6 +372,7 @@ const typeDefs = gql`
             maxSearch: ReservationRangeSearch
             likeSearch: ReservationLikeSearch
             sort: ReservationSort
+            my: String
         ): [Reservation]!
         getHallReservations(
             limit: Int!

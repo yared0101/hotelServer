@@ -225,7 +225,7 @@ const Query = {
     },
     getReservations: async (
         _,
-        { limit, skip, minSearch, maxSearch, likeSearch, sort },
+        { limit, skip, minSearch, maxSearch, likeSearch, sort, my },
         { _client }
     ) => {
         likeSearch = likeSearch || {};
@@ -246,6 +246,15 @@ const Query = {
             likeSearch[i] = new ObjectId(likeSearch[i]);
         }
         let filter = { ...likeSearch };
+        if (my) {
+            let payLoad;
+            try {
+                payLoad = verify(my, process.env.ACCESS_KEY);
+            } catch (e) {
+                throw error("Invalid or Expired Access Token", "accessToken");
+            }
+            filter = { ...filter, userId: new ObjectId(payLoad._id) };
+        }
         for (let i in minSearch) {
             if (i === "childrenGuest") filter[`${i}.1`] = { $gt: minSearch[i] };
             else if (i === "adultGuest")
