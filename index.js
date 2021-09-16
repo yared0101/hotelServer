@@ -31,6 +31,7 @@ const userColNames = {
     phoneNumber: 1,
     type: 1,
     role: 1,
+    image: 1,
 };
 const roomColNames = {
     floor: 1,
@@ -58,6 +59,8 @@ const foodAndDrinkColNames = {
     rate: 1,
     time: 1,
     type: 1,
+    image: 1,
+    status: 1,
 };
 const serviceColNames = {
     _id: 1,
@@ -73,6 +76,7 @@ const orderedFoodAndDrinkColNames = {
     orderer: 1,
     status: 1,
     orderedTime: 1,
+    _id: 1,
 };
 const roomServiceColNames = {
     _id: 1,

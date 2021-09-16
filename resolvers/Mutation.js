@@ -132,14 +132,14 @@ const validation = {
         const client = _client();
         try {
             await client.connect();
-            const { name } = await client
+            const data = await client
                 .db("myHotel")
                 .collection("roomTypes")
                 .findOne(
                     { name: roomType },
-                    { projection: { name: 1, _id: -1 } }
+                    { projection: { name: 1, _id: 0 } }
                 );
-            if (name) return true;
+            if (data) return true;
             else
                 throw {
                     type: "myError",
@@ -448,6 +448,7 @@ const Mutation = {
         updateData.email &&
             checkEmail(updateData.email) &&
             checkSize({ email: updateData.email });
+        updateData.image && checkSize({ image: updateData.image });
         updateData.phoneNumber &&
             checkPhoneNumber(updateData.phoneNumber) &&
             checkSize({ phoneNumber: updateData.phoneNumber });
@@ -534,7 +535,7 @@ const Mutation = {
             throw error("Invalid or Expired Access Token", "accessToken");
         }
         const { accessTokenPower } = right;
-        await accessTokenPower(payLoad, "roomType", 2);
+        await accessTokenPower(payLoad, "roomTypes", 2);
         const { checkName, checkPrice } = validation;
         checkSize({ name: newData.name });
         checkSize({ image: newData.image }, 1000);
@@ -1010,7 +1011,6 @@ const Mutation = {
                 .find({
                     date: { $gt: yesterday },
                     ...identifier,
-                    ...reserverIdentifier,
                 });
             const reservedData = await reservedCursor.toArray();
             const dateArray = reservedData.map((element) => element.date);
@@ -1292,10 +1292,12 @@ const Mutation = {
             type: newData.type,
         });
         checkSize({ description: newData.description }, 300);
+        checkSize({ image: newData.image }, 3000);
         checkRate(newData.rate);
         checkTime(newData.time);
         checkName(newData.name);
         checkNormalPrice(newData.price);
+        newData.status = true;
         const client = _client();
         try {
             await client.connect();
@@ -1344,6 +1346,7 @@ const Mutation = {
         updateData.description
             ? checkSize({ description: updateData.description }, 300)
             : {};
+        updateData.image ? checkSize({ image: updateData.image }, 3000) : {};
         updateData.rate ? checkRate(updateData.rate) : {};
         updateData.time ? checkTime(updateData.time) : {};
         updateData.name ? checkName(updateData.name) : {};

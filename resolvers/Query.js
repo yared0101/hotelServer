@@ -239,6 +239,9 @@ const Query = {
             if (sort[i]) newSort[i] = 1;
             else newSort[i] = -1;
         }
+        if (newSort["date"] == 1 && newSort["roomId"] == 1)
+            newSort = { roomId: 1, date: 1 };
+        console.log(newSort);
         for (let i in likeSearch) {
             likeSearch[i] = new ObjectId(likeSearch[i]);
         }
@@ -272,7 +275,11 @@ const Query = {
             const cursor = client
                 .db("myHotel")
                 .collection("reservations")
-                .find(filter);
+                .find(filter, {
+                    sort: newSort,
+                    limit,
+                    skip,
+                });
             return await cursor.toArray();
         } catch (e) {
             if (e.type === "myError") throw e.error;
@@ -379,7 +386,16 @@ const Query = {
     },
     getOrderedFoodAndDrinks: async (
         _,
-        { accessToken, limit, skip, likeSearch, minSearch, maxSearch, sort },
+        {
+            accessToken,
+            limit,
+            skip,
+            likeSearch,
+            minSearch,
+            maxSearch,
+            sort,
+            my,
+        },
         { orderedFoodAndDrinkColNames, _client, right }
     ) => {
         let payLoad;
@@ -389,7 +405,12 @@ const Query = {
             throw error("Invalid or Expired Access Token", "accessToken");
         }
         const { accessTokenPower } = right;
-        await accessTokenPower(payLoad, "orderedFoodAndDrinks", 1);
+        let filter;
+        if (!my) {
+            await accessTokenPower(payLoad, "orderedFoodAndDrinks", 1);
+        } else {
+            filter = { orderer: new ObjectId(payLoad._id) };
+        }
         likeSearch = likeSearch || {};
         minSearch = minSearch || {};
         maxSearch = maxSearch || {};
@@ -407,7 +428,7 @@ const Query = {
             if (sort[i]) newSort[i] = 1;
             else newSort[i] = -1;
         }
-        let filter = { ...likeSearch };
+        filter = { ...filter, ...likeSearch };
         for (let i in minSearch) {
             filter[i] = { $gt: minSearch[i] };
         }
@@ -486,7 +507,16 @@ const Query = {
     },
     getOrderedRoomServices: async (
         _,
-        { accessToken, limit, skip, likeSearch, minSearch, maxSearch, sort },
+        {
+            accessToken,
+            limit,
+            skip,
+            likeSearch,
+            minSearch,
+            maxSearch,
+            sort,
+            my,
+        },
         { orderedRoomServiceColNames, _client, right }
     ) => {
         let payLoad;
@@ -496,7 +526,14 @@ const Query = {
             throw error("Invalid or Expired Access Token", "accessToken");
         }
         const { accessTokenPower } = right;
-        await accessTokenPower(payLoad, "orderedRoomServices", 1);
+        let filter;
+        console.log(my);
+        if (!my) {
+            await accessTokenPower(payLoad, "orderedRoomServices", 1);
+        } else {
+            filter = { orderer: new ObjectId(payLoad._id) };
+        }
+        console.log(filter);
         likeSearch = likeSearch || {};
         minSearch = minSearch || {};
         maxSearch = maxSearch || {};
@@ -514,7 +551,7 @@ const Query = {
             if (sort[i]) newSort[i] = 1;
             else newSort[i] = -1;
         }
-        let filter = { ...likeSearch };
+        filter = { ...filter, ...likeSearch };
         for (let i in minSearch) {
             filter[i] = { $gt: minSearch[i] };
         }

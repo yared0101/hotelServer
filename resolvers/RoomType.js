@@ -19,7 +19,7 @@ const RoomType = {
             const roomCursor = client
                 .db("myHotel")
                 .collection("rooms")
-                .find({ type: name });
+                .find({ type: name, availability: true });
             const allRooms = await roomCursor.toArray();
             const nonReserved = allRooms.filter(({ _id }) => {
                 if (reservedRooms.indexOf(String(_id)) === -1) return true;

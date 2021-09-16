@@ -25,6 +25,7 @@ const typeDefs = gql`
         name: String
         email: String
         phoneNumber: String
+        image: String
         role: UserRole! # stringify and send this for maybe some convenience
     }
     input UserSort {
@@ -46,6 +47,7 @@ const typeDefs = gql`
         name: String
         email: String
         phoneNumber: String
+        image: String
         role: UserRoleInput #the data sent here will rewrite everything!
         password: [String] # array of strings, the first one being the old password
     }
@@ -140,7 +142,7 @@ const typeDefs = gql`
     type Reservation {
         date: String!
         user: User!
-        roomId: String!
+        room: Room!
         guests: [Int!]!
     }
     type HallReservation {
@@ -170,6 +172,8 @@ const typeDefs = gql`
     }
     input ReservationSort {
         date: Boolean
+        roomId: Boolean
+        userId: Boolean
     }
     input ReservationLikeSearch {
         roomId: String
@@ -185,6 +189,8 @@ const typeDefs = gql`
         rate: Float!
         time: Int!
         type: String!
+        image: String!
+        status: Boolean!
     }
     input FoodAndDrinkInput {
         name: String!
@@ -195,6 +201,7 @@ const typeDefs = gql`
         rate: Float!
         time: Int!
         type: String!
+        image: String!
     }
     input FoodAndDrinkUpdate {
         name: String
@@ -205,6 +212,7 @@ const typeDefs = gql`
         rate: Float
         time: Int
         type: String
+        status: Boolean
     }
     input FoodAndDrinkSort {
         name: Boolean
@@ -215,6 +223,7 @@ const typeDefs = gql`
         rate: Boolean
         time: Boolean
         type: Boolean
+        status: Boolean
     }
     input FoodAndDrinkLikeSearch {
         name: String
@@ -363,6 +372,7 @@ const typeDefs = gql`
             minSearch: ReservationRangeSearch
             maxSearch: ReservationRangeSearch
             likeSearch: ReservationLikeSearch
+            sort: ReservationSort
         ): [Reservation]!
         getHallReservations(
             limit: Int!
@@ -387,6 +397,7 @@ const typeDefs = gql`
             maxSearch: OrderedFoodAndDrinkRangeSearch
             likeSearch: OrderedFoodAndDrinkLikeSearch
             sort: OrderedFoodAndDrinkSort
+            my: Boolean
         ): [OrderedFoodAndDrink]!
         getRoomServices(
             limit: Int!
@@ -453,7 +464,6 @@ const typeDefs = gql`
             from: String!
             to: String!
             guests: [Int!]! #Array of [adult, children] allowed in the room
-            hallInfo: String
             reserver: String
         ): Boolean! #default reserver is accesstoken
         updateReservation(
